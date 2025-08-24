@@ -30,7 +30,13 @@ flatpak install -y flathub \
   org.virt_manager.virt-manager \
   io.neovim.nvim \
   com.vscodium.codium \
-  com.visualstudio.code
+  com.visualstudio.code \
+  org.ferdium.Ferdium \
+  org.winehq.Wine \
+  org.inkscape.Inkscape \
+  com.jeffser.Alpaca \
+  com.github.johnfactotum.Foliate \
+  org.zotero.Zotero
 
 echo "--- Applications potentiellement problématiques ---"
 # VS Code : réessayer individuellement
