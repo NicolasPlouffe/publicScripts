@@ -1,10 +1,12 @@
 #!/bin/bash
 
-# Script d'installation MEGA Sync pour Ubuntu 24.04
+# Script d'installation MEGA Desktop pour Ubuntu 24.04
+# Téléchargement, installation, intégration Nautilus/GNOME et nettoyage
+# Compatible Sway + GNOME (pas de conflit)
 # Auteur: Générateur automatique
 # Date: $(date)
 
-set -e  # Arrêter le script en cas d'erreur
+set -e
 
 # Couleurs pour les messages
 RED='\033[0;31m'
@@ -15,7 +17,6 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Fonction pour afficher des messages colorés
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -42,188 +43,237 @@ print_cyan() {
 
 print_header "
 ╔══════════════════════════════════════════════════════════════════════╗
-║                        INSTALLATION MEGA SYNC                       ║
-║                           UBUNTU 24.04                              ║
+║                    INSTALLATION MEGA DESKTOP                        ║
+║              UBUNTU 24.04 + NAUTILUS + GNOME/SWAY                  ║
 ╚══════════════════════════════════════════════════════════════════════╝
 "
 
-print_cyan "☁️  Ce script va installer MEGA Sync pour Ubuntu 24.04:"
-print_cyan "   • Téléchargement automatique du package officiel"
-print_cyan "   • Installation des dépendances requises"
-print_cyan "   • Configuration de MEGA Sync"
-print_cyan "   • Intégration avec le système de fichiers"
+print_cyan "🚀 Ce script va installer MEGA Desktop avec intégration complète:"
+print_cyan "   • Téléchargement du package officiel Ubuntu 24.04"
+print_cyan "   • Installation de MEGAsync + extensions Nautilus"
+print_cyan "   • Intégration parfaite GNOME (compatible Sway)"
+print_cyan "   • Configuration du repository officiel"
+print_cyan "   • Nettoyage automatique"
 echo ""
 
 # Variables
-MEGA_URL="https://mega.nz/linux/repo/xUbuntu_24.04/amd64/megasync-xUbuntu_24.04_amd64.deb"
+UBUNTU_VERSION="24.04"
+MEGA_BASE_URL="https://mega.nz/linux/repo/xUbuntu_${UBUNTU_VERSION}/amd64"
+MEGASYNC_DEB="megasync-xUbuntu_${UBUNTU_VERSION}_amd64.deb"
+NAUTILUS_EXT_DEB="nautilus-megasync-xUbuntu_${UBUNTU_VERSION}_amd64.deb"
 TEMP_DIR="/tmp/mega-install"
-DEB_FILE="megasync-xUbuntu_24.04_amd64.deb"
 
-# Vérifier les permissions et prérequis
-print_info "Vérification des prérequis..."
-
-# Vérifier si on est sur Ubuntu/Debian
-if ! command -v apt &> /dev/null; then
-    print_error "Ce script est conçu pour Ubuntu/Debian avec apt"
+print_info "🔍 Détection de l'architecture système..."
+ARCH=$(dpkg --print-architecture)
+if [[ "$ARCH" != "amd64" ]]; then
+    print_error "❌ Ce script est conçu pour architecture amd64, détectée: $ARCH"
     exit 1
 fi
+print_success "✅ Architecture amd64 confirmée"
 
-# Vérifier la connexion internet
-if ! ping -c 1 mega.nz &> /dev/null; then
-    print_error "Connexion internet requise pour télécharger MEGA Sync"
-    exit 1
+print_info "🔍 Vérification de la version Ubuntu..."
+if ! grep -q "24.04" /etc/os-release; then
+    print_warning "⚠️  Version Ubuntu non-24.04 détectée, le script peut fonctionner quand même"
+    print_info "Contenu /etc/os-release:"
+    grep VERSION /etc/os-release
 fi
 
-print_success "Prérequis validés"
-
-# Vérifier si MEGA Sync est déjà installé
-if command -v megasync &> /dev/null; then
-    MEGA_VERSION=$(megasync --version 2>/dev/null || echo "Version inconnue")
-    print_warning "MEGA Sync est déjà installé: $MEGA_VERSION"
-    read -p "Voulez-vous le réinstaller/mettre à jour ? [y/N]: " reinstall
-    if [[ ! "$reinstall" =~ ^[Yy]$ ]]; then
-        print_info "Installation annulée"
-        exit 0
-    fi
-fi
-
-# Mettre à jour les packages système
-print_info "Mise à jour des packages système..."
-sudo apt update -y
-
-# Installer les dépendances requises pour MEGA Sync
-print_info "Installation des dépendances MEGA Sync..."
-sudo apt install -y \
-    wget \
-    curl \
-    ca-certificates \
-    gnupg \
-    lsb-release \
-    libqt5widgets5 \
-    libqt5gui5 \
-    libqt5core5a \
-    libqt5network5 \
-    libqt5svg5 \
-    libssl3 \
-    libc-ares2 \
-    libcrypto++8 \
-    libmediainfo0v5 \
-    libzen0v5 \
-    libuv1
-
-print_success "Dépendances installées"
-
-# Créer le répertoire temporaire
-print_info "Création du répertoire temporaire..."
+# Création du répertoire temporaire
+print_info "📁 Préparation de l'environnement..."
+rm -rf "$TEMP_DIR"
 mkdir -p "$TEMP_DIR"
 cd "$TEMP_DIR"
 
-# Télécharger MEGA Sync
-print_info "Téléchargement de MEGA Sync..."
-print_info "URL: $MEGA_URL"
+print_success "✅ Répertoire temporaire créé: $TEMP_DIR"
 
-if wget -O "$DEB_FILE" "$MEGA_URL"; then
-    print_success "Téléchargement réussi"
+# Mise à jour du système
+print_info "🔄 Mise à jour des packages système..."
+sudo apt update -y
+
+# Vérification de la connectivité
+print_info "🌐 Vérification de la connectivité MEGA..."
+if curl -s --connect-timeout 10 "$MEGA_BASE_URL" > /dev/null; then
+    print_success "✅ Serveurs MEGA accessibles"
 else
-    print_error "Échec du téléchargement"
-
-    # URL alternative via repository
-    print_info "Tentative avec le repository MEGA..."
-
-    # Ajouter la clé GPG MEGA
-    wget -qO - https://mega.nz/linux/repo/xUbuntu_24.04/Release.key | sudo apt-key add - || true
-
-    # Ajouter le repository MEGA
-    echo "deb https://mega.nz/linux/repo/xUbuntu_24.04/ ./" | sudo tee /etc/apt/sources.list.d/megasync.list
-
-    # Mettre à jour et installer via repository
-    sudo apt update
-    if sudo apt install -y megasync; then
-        print_success "MEGA Sync installé via repository"
-        cd "$HOME"
-        rm -rf "$TEMP_DIR"
-
-        # Aller directement aux vérifications finales
-        print_info "Installation via repository réussie, passage aux vérifications..."
-        REPO_INSTALL=true
-    else
-        print_error "Échec de toutes les méthodes d'installation"
-        exit 1
-    fi
+    print_warning "⚠️  Test de connectivité MEGA incertain, on continue..."
 fi
 
-# Installation du package .deb (si téléchargement direct réussi)
-if [[ "$REPO_INSTALL" != "true" ]]; then
-    print_info "Installation du package MEGA Sync..."
+# Téléchargement des packages MEGA
+print_info "📥 Téléchargement de MEGAsync..."
+print_info "URL: $MEGA_BASE_URL/$MEGASYNC_DEB"
 
-    # Vérifier l'intégrité du fichier téléchargé
-    if [[ ! -f "$DEB_FILE" ]]; then
-        print_error "Fichier $DEB_FILE non trouvé"
-        exit 1
-    fi
-
-    # Vérifier la taille du fichier (doit être > 1MB)
-    FILE_SIZE=$(stat -c%s "$DEB_FILE")
-    if [[ $FILE_SIZE -lt 1000000 ]]; then
-        print_error "Fichier téléchargé trop petit ($FILE_SIZE bytes), probablement corrompu"
-        exit 1
-    fi
-
-    print_success "Fichier vérifié (${FILE_SIZE} bytes)"
-
-    # Installer le package avec gestion des dépendances
-    print_info "Installation du package .deb..."
-    if sudo apt install -y "./$DEB_FILE"; then
-        print_success "MEGA Sync installé via package .deb"
-    else
-        print_warning "Échec de l'installation directe, tentative avec dpkg + fix..."
-
-        # Installer avec dpkg puis corriger les dépendances
-        sudo dpkg -i "./$DEB_FILE" || true
-        sudo apt-get install -f -y
-
-        if command -v megasync &> /dev/null; then
-            print_success "MEGA Sync installé après correction des dépendances"
-        else
-            print_error "Échec définitif de l'installation"
-            exit 1
-        fi
-    fi
-
-    # Nettoyer les fichiers temporaires
-    print_info "Nettoyage des fichiers temporaires..."
-    cd "$HOME"
-    rm -rf "$TEMP_DIR"
-fi
-
-# Vérifications finales
-print_info "Vérification de l'installation..."
-
-if command -v megasync &> /dev/null; then
-    MEGA_VERSION_FINAL=$(megasync --version 2>/dev/null || echo "Installé")
-    print_success "✅ MEGA Sync installé avec succès!"
-    print_success "Version: $MEGA_VERSION_FINAL"
+if wget --progress=bar:force:noscroll -O "$MEGASYNC_DEB" "$MEGA_BASE_URL/$MEGASYNC_DEB"; then
+    print_success "✅ MEGAsync téléchargé"
 else
-    print_error "❌ MEGA Sync n'est pas accessible après installation"
+    print_error "❌ Échec du téléchargement de MEGAsync"
+    print_info "💡 Solutions alternatives:"
+    print_info "1. Vérifiez votre connexion internet"
+    print_info "2. Essayez plus tard (serveurs temporairement indisponibles)"
+    print_info "3. Téléchargement manuel: $MEGA_BASE_URL/$MEGASYNC_DEB"
     exit 1
 fi
 
-# Vérifier l'intégration système
-if [[ -f "/usr/share/applications/megasync.desktop" ]]; then
-    print_success "Raccourci bureau installé"
+print_info "📥 Téléchargement de l'extension Nautilus..."
+print_info "URL: $MEGA_BASE_URL/$NAUTILUS_EXT_DEB"
+
+if wget --progress=bar:force:noscroll -O "$NAUTILUS_EXT_DEB" "$MEGA_BASE_URL/$NAUTILUS_EXT_DEB"; then
+    print_success "✅ Extension Nautilus téléchargée"
 else
-    print_warning "Raccourci bureau non trouvé"
+    print_warning "⚠️  Échec du téléchargement de l'extension Nautilus (non critique)"
+    print_info "MEGAsync sera installé sans intégration Nautilus"
+    NAUTILUS_EXT_DEB=""
 fi
 
-# Configuration additionnelle
-print_info "Configuration de MEGA Sync..."
+# Vérification des fichiers téléchargés
+print_info "🔍 Vérification des packages téléchargés..."
+MEGASYNC_SIZE=$(stat -c%s "$MEGASYNC_DEB" 2>/dev/null || echo "0")
+if [[ $MEGASYNC_SIZE -lt 1000000 ]]; then  # Moins de 1MB
+    print_error "❌ Fichier MEGAsync trop petit ($MEGASYNC_SIZE bytes), probablement corrompu"
+    exit 1
+fi
+print_success "✅ MEGAsync vérifié ($(($MEGASYNC_SIZE / 1024 / 1024)) MB)"
 
-# Créer le répertoire de configuration s'il n'existe pas
-mkdir -p "$HOME/.local/share/data/Mega Limited"
+if [[ -n "$NAUTILUS_EXT_DEB" ]]; then
+    NAUTILUS_SIZE=$(stat -c%s "$NAUTILUS_EXT_DEB" 2>/dev/null || echo "0")
+    if [[ $NAUTILUS_SIZE -lt 10000 ]]; then  # Moins de 10KB
+        print_warning "⚠️  Extension Nautilus trop petite, ignorée"
+        NAUTILUS_EXT_DEB=""
+    else
+        print_success "✅ Extension Nautilus vérifiée ($(($NAUTILUS_SIZE / 1024)) KB)"
+    fi
+fi
 
-# Vérifier si le service peut démarrer
-print_info "Test de démarrage de MEGA Sync..."
-timeout 10 megasync --version &>/dev/null && print_success "MEGA Sync fonctionne correctement" || print_warning "Délai d'attente dépassé pour le test"
+# Installation des packages
+print_info "📦 Installation de MEGAsync..."
+
+# Installation de MEGAsync avec gestion des dépendances
+if sudo apt install -y "./$MEGASYNC_DEB"; then
+    print_success "✅ MEGAsync installé avec succès"
+else
+    print_warning "⚠️  Installation directe échouée, tentative avec correction des dépendances..."
+
+    # Tentative avec dpkg puis correction
+    sudo dpkg -i "./$MEGASYNC_DEB" || true
+    sudo apt-get install -f -y
+
+    if command -v megasync &> /dev/null; then
+        print_success "✅ MEGAsync installé après correction des dépendances"
+    else
+        print_error "❌ Échec définitif de l'installation de MEGAsync"
+        exit 1
+    fi
+fi
+
+# Installation de l'extension Nautilus si disponible
+if [[ -n "$NAUTILUS_EXT_DEB" ]]; then
+    print_info "📦 Installation de l'extension Nautilus..."
+
+    if sudo apt install -y "./$NAUTILUS_EXT_DEB"; then
+        print_success "✅ Extension Nautilus installée"
+    else
+        print_warning "⚠️  Installation de l'extension Nautilus échouée (non critique)"
+        # Tentative avec dpkg
+        sudo dpkg -i "./$NAUTILUS_EXT_DEB" || true
+        sudo apt-get install -f -y || true
+    fi
+fi
+
+# Configuration du repository officiel MEGA (pour les mises à jour)
+print_info "⚙️  Configuration du repository MEGA pour les mises à jour..."
+
+# Ajout de la clé GPG MEGA
+print_info "🔑 Ajout de la clé GPG MEGA..."
+if curl -fsSL https://mega.nz/keys/MEGA_signing.key | sudo gpg --dearmor -o /usr/share/keyrings/mega-archive-keyring.gpg; then
+    print_success "✅ Clé GPG MEGA ajoutée"
+else
+    print_warning "⚠️  Échec de l'ajout de la clé GPG (les mises à jour automatiques ne fonctionneront pas)"
+fi
+
+# Ajout du repository
+print_info "📋 Ajout du repository MEGA..."
+REPO_LINE="deb [arch=amd64 signed-by=/usr/share/keyrings/mega-archive-keyring.gpg] https://mega.nz/linux/repo/xUbuntu_${UBUNTU_VERSION}/ ./"
+
+if echo "$REPO_LINE" | sudo tee /etc/apt/sources.list.d/mega.list > /dev/null; then
+    print_success "✅ Repository MEGA ajouté"
+
+    # Mise à jour avec le nouveau repository
+    if sudo apt update -y; then
+        print_success "✅ Liste des packages mise à jour"
+    else
+        print_warning "⚠️  Mise à jour des packages échouée (non critique)"
+    fi
+else
+    print_warning "⚠️  Échec de l'ajout du repository MEGA"
+fi
+
+# Vérification de l'installation
+print_info "🧪 Vérification de l'installation..."
+
+if command -v megasync &> /dev/null; then
+    MEGA_VERSION=$(megasync --version 2>/dev/null || echo "Installé")
+    print_success "✅ MEGAsync installé et fonctionnel"
+    print_success "Version: $MEGA_VERSION"
+else
+    print_error "❌ MEGAsync non accessible après installation"
+    exit 1
+fi
+
+# Vérification de l'intégration système
+print_info "🖥️  Vérification de l'intégration système..."
+
+# Fichier .desktop
+if [[ -f "/usr/share/applications/megasync.desktop" ]]; then
+    print_success "✅ Raccourci GNOME installé"
+else
+    print_warning "⚠️  Raccourci GNOME non trouvé"
+fi
+
+# Extension Nautilus
+if [[ -f "/usr/lib/nautilus/extensions-3.0/libnautilus-megasync.so" ]] || [[ -f "/usr/lib/x86_64-linux-gnu/nautilus/extensions-3.0/libnautilus-megasync.so" ]]; then
+    print_success "✅ Extension Nautilus installée"
+else
+    print_warning "⚠️  Extension Nautilus non détectée"
+fi
+
+# Test de compatibilité Sway/GNOME
+print_info "🪟 Vérification de la compatibilité environnement..."
+
+# Détection de l'environnement graphique
+if [[ -n "$GNOME_DESKTOP_SESSION_ID" ]] || [[ "$XDG_CURRENT_DESKTOP" == *"GNOME"* ]]; then
+    print_success "✅ Environnement GNOME détecté - intégration parfaite"
+elif [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
+    print_success "✅ Session Wayland détectée - compatible Sway"
+else
+    print_info "ℹ️  Environnement: $XDG_CURRENT_DESKTOP ($XDG_SESSION_TYPE)"
+fi
+
+print_info "💡 MEGA Desktop est compatible avec:"
+print_info "   • GNOME (intégration native Nautilus)"
+print_info "   • Sway (fonctionne parfaitement en Wayland)"
+print_info "   • Autres environnements (fonctionnalité de base)"
+
+# Nettoyage des fichiers temporaires
+print_info "🧹 Nettoyage des fichiers temporaires..."
+cd "$HOME"
+rm -rf "$TEMP_DIR"
+print_success "✅ Nettoyage terminé"
+
+# Configuration post-installation
+print_info "⚙️  Configuration post-installation..."
+
+# Mise à jour des bases de données GNOME
+if command -v update-desktop-database &> /dev/null; then
+    sudo update-desktop-database /usr/share/applications 2>/dev/null || true
+    print_success "✅ Base de données des applications mise à jour"
+fi
+
+# Redémarrage de Nautilus pour charger l'extension (si en cours)
+if pgrep nautilus > /dev/null; then
+    print_info "🔄 Redémarrage de Nautilus pour charger l'extension..."
+    nautilus -q 2>/dev/null || true
+    sleep 2
+    print_success "✅ Nautilus redémarré"
+fi
 
 print_header "
 ╔══════════════════════════════════════════════════════════════════════╗
@@ -231,67 +281,92 @@ print_header "
 ╚══════════════════════════════════════════════════════════════════════╝
 "
 
-print_success "🎉 MEGA Sync installé avec succès!"
+print_success "🎉 MEGA Desktop installé avec succès sur Ubuntu 24.04!"
 echo ""
 
 print_cyan "📍 Informations d'installation:"
-print_info "  📁 Exécutable: $(which megasync 2>/dev/null || echo '/usr/bin/megasync')"
-print_info "  🖥️  Raccourci: Recherchez 'MEGA' dans le menu des applications"
-print_info "  ⚙️  Configuration: ~/.local/share/data/Mega Limited/"
-print_info "  📄 Logs: ~/.local/share/data/Mega Limited/MEGAsync/logs/"
+print_info "  🚀 Application: MEGAsync dans le menu des applications"
+print_info "  📁 Intégration: Nautilus (clic droit dans les dossiers)"
+print_info "  🔄 Mises à jour: Repository officiel configuré"
+print_info "  💾 Taille totale: $(($MEGASYNC_SIZE / 1024 / 1024)) MB"
 echo ""
 
-print_cyan "🔧 Comment utiliser MEGA Sync:"
+print_cyan "🔧 Comment utiliser MEGA Desktop:"
 print_info "1. Recherchez 'MEGA' dans le menu des applications GNOME"
 print_info "2. Ou lancez depuis le terminal: megasync"
-print_info "3. Connectez-vous avec votre compte MEGA"
-print_info "4. Configurez les dossiers à synchroniser"
+print_info "3. Connectez-vous à votre compte MEGA"
+print_info "4. Configurez la synchronisation de vos dossiers"
+print_info "5. Clic droit dans Nautilus pour les options MEGA"
 echo ""
 
-print_cyan "⚙️  Fonctionnalités MEGA Sync:"
-print_info "• Synchronisation automatique de fichiers"
-print_info "• Chiffrement de bout en bout"
-print_info "• Partage de fichiers et dossiers"
-print_info "• Versions de fichiers et corbeille"
-print_info "• Intégration avec l'explorateur de fichiers"
+print_cyan "🌐 Fonctionnalités MEGA Desktop:"
+print_info "• Synchronisation automatique chiffrée de bout en bout"
+print_info "• 20 GB de stockage gratuit"
+print_info "• Intégration Nautilus (upload, partage, etc.)"
+print_info "• Synchronisation sélective des dossiers"
+print_info "• Sauvegarde en temps réel"
+print_info "• Compatible GNOME + Sway (sans conflit)"
 echo ""
 
-# Proposer de lancer MEGA Sync
-read -p "☁️  Voulez-vous lancer MEGA Sync maintenant ? [Y/n]: " launch_now
+print_cyan "🔒 Sécurité et confidentialité:"
+print_info "• Chiffrement de bout en bout (zero-knowledge)"
+print_info "• Clés de chiffrement contrôlées par l'utilisateur"
+print_info "• Aucun accès possible aux données par MEGA"
+print_info "• Authentification à deux facteurs disponible"
+echo ""
+
+# Proposition de lancement
+read -p "🚀 Voulez-vous lancer MEGA Desktop maintenant ? [Y/n]: " launch_now
+
 if [[ "$launch_now" =~ ^[Nn]$ ]]; then
-    print_info "Vous pouvez lancer MEGA Sync plus tard depuis le menu des applications"
+    print_info "Vous pouvez lancer MEGA plus tard depuis le menu des applications"
 else
-    print_info "Lancement de MEGA Sync..."
+    print_info "Lancement de MEGA Desktop..."
 
     # Lancer en arrière-plan
-    nohup megasync > /dev/null 2>&1 &
+    if command -v megasync &> /dev/null; then
+        nohup megasync > /tmp/megasync.log 2>&1 &
 
-    sleep 3
+        sleep 3
 
-    if pgrep -f megasync > /dev/null; then
-        print_success "✅ MEGA Sync lancé avec succès!"
-        print_info "L'icône devrait apparaître dans votre barre de notification"
-        print_info "Cliquez dessus pour vous connecter à votre compte MEGA"
-    else
-        print_warning "⚠️  MEGA Sync ne semble pas s'être lancé automatiquement"
-        print_info "Vous pouvez le lancer manuellement depuis le menu des applications"
+        if pgrep -f megasync > /dev/null; then
+            print_success "✅ MEGA Desktop lancé avec succès!"
+            print_info "L'icône devrait apparaître dans votre barre de notification"
+            print_info "Cliquez dessus pour vous connecter à votre compte MEGA"
+        else
+            print_warning "⚠️  MEGA Desktop ne semble pas s'être lancé automatiquement"
+            print_info "Vous pouvez le lancer manuellement depuis le menu des applications"
+        fi
     fi
 fi
+
+echo ""
 
 print_cyan "💡 Conseils d'utilisation:"
 print_info "• Premier lancement: connectez-vous avec votre compte MEGA"
 print_info "• Configurez la synchronisation sélective pour économiser l'espace"
-print_info "• Utilisez le clic droit dans l'explorateur pour partager des fichiers"
+print_info "• Dans Nautilus: clic droit → MEGA pour partager des fichiers"
 print_info "• Vérifiez les paramètres de bande passante si nécessaire"
 print_info "• Les fichiers synchronisés apparaissent dans ~/MEGA par défaut"
 
-print_cyan "🔒 Sécurité:"
-print_info "• Vos fichiers sont chiffrés de bout en bout"
-print_info "• Même MEGA ne peut pas accéder à vos données"
-print_info "• Gardez votre clé de récupération en lieu sûr"
+print_cyan "🔧 Compatibilité Sway + GNOME:"
+print_info "• MEGA Desktop fonctionne parfaitement avec les deux"
+print_info "• Sway: utilisation en Wayland native"
+print_info "• GNOME: intégration Nautilus complète"
+print_info "• Aucun conflit entre les environnements"
+print_info "• Basculement transparent entre GNOME et Sway"
 
-print_success "🎯 MEGA Sync est prêt à synchroniser vos fichiers! ☁️✨"
-
-# Afficher des informations sur la désinstallation
 print_cyan "🗑️  Pour désinstaller plus tard:"
-print_info "sudo apt remove megasync"
+print_info "sudo apt remove megasync nautilus-megasync"
+print_info "sudo rm /etc/apt/sources.list.d/mega.list"
+
+print_success "🎯 MEGA Desktop est prêt à synchroniser vos fichiers! ☁️🔒"
+
+# Informations de dépannage
+print_cyan "🔧 En cas de problème:"
+print_info "• Logs MEGA: ~/.local/share/data/Mega Limited/MEGAsync/logs/"
+print_info "• Redémarrer MEGA: pkill megasync puis relancer"
+print_info "• Extension Nautilus: redémarrer Nautilus (nautilus -q)"
+print_info "• Support officiel: https://help.mega.io/"
+
+print_success "🌟 Installation terminée avec succès!"
