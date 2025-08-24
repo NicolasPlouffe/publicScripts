@@ -1,0 +1,205 @@
+# Configuration ZSH moderne et unifiée
+# Créé pour unifier l'environnement de développement
+
+# HISTORIQUE AMÉLIORÉ (options compatibles zsh 5.9)
+HISTFILE=~/.zsh_history
+HISTSIZE=2000
+SAVEHIST=2000
+setopt HIST_IGNORE_DUPS    # Ignore les doublons consécutifs
+setopt HIST_REDUCE_BLANKS  # Supprime les espaces superflus
+setopt SHARE_HISTORY       # Partage l'historique entre sessions
+
+# AUTOCOMPLÉTION MODERNE
+autoload -Uz compinit && compinit
+
+# PROMPT AVEC STARSHIP
+eval "$(starship init zsh)"
+
+# ALIAS SYSTÈME
+alias ll='ls -alF'
+alias la='ls -A'  
+alias ls='ls --color=auto'
+alias full-update='sudo apt update && sudo apt full-upgrade -y'
+
+# ALIAS YOUTUBE
+alias adl='audioDl'
+alias vdl='videoDl'
+
+# === FONCTIONS PERSONNALISÉES ===
+
+# Fonction Git simplifiée (add, commit, push)
+gcp() {
+    if [ -z "$1" ]; then
+        echo "Erreur: Veuillez fournir un message de commit"
+        echo "Usage: gcp 'votre message de commit'"
+        return 1
+    fi
+
+    current_branch=$(git branch --show-current 2>/dev/null)
+    if [ $? -ne 0 ]; then
+        echo "Erreur: Vous n'êtes pas dans un répertoire git"
+        return 1
+    fi
+
+    echo "📦 Ajout des fichiers..."
+    git add . && echo "✅ Fichiers ajoutés avec succès" || { echo "❌ Erreur lors de l'ajout"; return 1; }
+
+    echo "💬 Création du commit avec le message: '$1'"
+    git commit -m "$1" && echo "✅ Commit créé avec succès" || { echo "❌ Erreur lors du commit"; return 1; }
+
+    echo "🚀 Push vers la branche '$current_branch'..."
+    git push origin "$current_branch" && echo "✅ Push effectué avec succès" || { echo "❌ Erreur lors du push"; return 1; }
+
+    echo "🎉 Processus terminé avec succès!"
+}
+
+# Fonction téléchargement audio YouTube
+audioDl() {
+    local url="$1"
+    local quality="${2:-320}"
+
+    if [[ -z "$url" ]]; then
+        echo "Usage: audioDl <URL_YOUTUBE> [qualite_audio]"
+        return 1
+    fi
+
+    local cookie_arg=""
+    [[ -f "$HOME/.config/yt-dlp/cookies.txt" ]] && cookie_arg="--cookies $HOME/.config/yt-dlp/cookies.txt"
+
+    if [[ "$url" =~ (playlist|list=|channel|@) ]]; then
+        echo "Playlist/Chaine detectee - Creation du dossier..."
+
+        local folder_name
+        folder_name=$(yt-dlp $cookie_arg --get-filename -o "%(uploader)s - %(playlist_title)s" "$url" 2>/dev/null | head -1)
+        folder_name=$(echo "$folder_name" | sed 's/[<>:"/\\|?*]//g' | sed 's/  */ /g' | xargs)
+
+        [[ -z "$folder_name" ]] && folder_name="YouTube_Audio_$(date +%Y%m%d_%H%M%S)"
+
+        mkdir -p "$folder_name" && cd "$folder_name"
+        echo "Telechargement dans le dossier: $folder_name"
+
+        yt-dlp $cookie_arg \
+            --extract-audio --audio-format mp3 --audio-quality "$quality" \
+            --embed-metadata --add-metadata --ignore-errors --continue --no-overwrites \
+            -o "%(playlist_index)03d - %(title)s.%(ext)s" "$url"
+        cd ..
+    else
+        echo "Video unique detectee..."
+        yt-dlp $cookie_arg \
+            --extract-audio --audio-format mp3 --audio-quality "$quality" \
+            --embed-metadata --add-metadata --ignore-errors --continue --no-overwrites \
+            -o "%(title)s.%(ext)s" "$url"
+    fi
+
+    [[ $? -eq 0 ]] && echo "✅ Telechargement termine avec succes!" || echo "❌ Echec du telechargement"
+}
+
+# Fonction téléchargement vidéo YouTube
+videoDl() {
+    local url="$1"
+    local format="${2:-bestvideo+bestaudio}"
+
+    if [[ -z "$url" ]]; then
+        echo "Usage: videoDl <URL_YOUTUBE> [format]"
+        echo "Exemples:"
+        echo "  videoDl 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'"
+        echo "  videoDl 'URL' 'bestvideo[height<=1080]+bestaudio'"
+        return 1
+    fi
+
+    local cookie_arg=""
+    [[ -f "$HOME/.config/yt-dlp/cookies.txt" ]] && cookie_arg="--cookies $HOME/.config/yt-dlp/cookies.txt"
+
+    if [[ "$url" =~ (playlist|list=|channel|@) ]]; then
+        echo "Playlist/Chaine detectee - Creation du dossier..."
+
+        local folder_name
+        folder_name=$(yt-dlp $cookie_arg --get-filename -o "%(uploader)s - %(playlist_title)s" "$url" 2>/dev/null | head -1)
+        folder_name=$(echo "$folder_name" | sed 's/[<>:"/\\|?*]//g' | sed 's/  */ /g' | xargs)
+
+        [[ -z "$folder_name" ]] && folder_name="YouTube_Video_$(date +%Y%m%d_%H%M%S)"
+
+        mkdir -p "$folder_name" && cd "$folder_name"
+        echo "Telechargement dans le dossier: $folder_name"
+
+        yt-dlp $cookie_arg -f "$format" --merge-output-format mp4 \
+            --ignore-errors --continue --no-overwrites \
+            -o "%(playlist_index)03d - %(title)s.%(ext)s" "$url"
+        cd ..
+    else
+        echo "Video unique detectee..."
+        yt-dlp $cookie_arg -f "$format" --merge-output-format mp4 \
+            --ignore-errors --continue --no-overwrites \
+            -o "%(title)s.%(ext)s" "$url"
+    fi
+
+    [[ $? -eq 0 ]] && echo "✅ Telechargement termine avec succes!" || echo "❌ Echec du telechargement"
+}
+
+# === ENVIRONNEMENT DE DÉVELOPPEMENT ===
+
+# Java (Eclipse Temurin)
+export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
+export PATH=$PATH:$JAVA_HOME/bin
+
+# Paths personnalisés
+export PATH="$HOME/.platformio/penv/bin:$PATH"
+export PATH="$HOME/bin:$PATH"
+
+# Homebrew (Linuxbrew)
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+# Node.js via NVM
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
+
+# Bun (JavaScript runtime)
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+[ -s "/home/nico/.bun/_bun" ] && source "/home/nico/.bun/_bun"
+
+# SDKMAN (Java, Kotlin, Scala, etc.)
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# Rust/Cargo
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+
+# Python - Configuration pour éviter les conflits
+export PYTHONSTARTUP="$HOME/.pythonrc.py"
+# Favorise l'utilisation d'environnements virtuels et pipx
+
+# === CONFIGURATION ZSH AVANCÉE ===
+
+# Autocomplétion case-insensitive
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+
+# Autocomplétion colorée
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+
+# Navigation rapide dans les répertoires
+setopt AUTO_CD              # cd automatique
+setopt AUTO_PUSHD           # pushd automatique
+setopt PUSHD_IGNORE_DUPS    # ignore les doublons dans la pile
+
+# Correction automatique des commandes
+setopt CORRECT
+
+# === INFORMATIONS UTILES ===
+# 
+# Commandes de gestion des environnements:
+#   nvm list                    # Versions Node.js installées
+#   sdk list java               # Versions Java disponibles
+#   python3 -m venv myproject   # Créer env virtuel Python
+#   source myproject/bin/activate # Activer env virtuel
+#
+# Runtimes installés:
+#   - Python 3.13 (Homebrew) + Python 3.12 (système)
+#   - Node.js via NVM + Bun
+#   - Java via SDKMAN (Eclipse Temurin)
+#   - Rust via rustup/cargo
+#   - Docker + Docker Compose
+#   - C++ (GCC + Clang)
+#
+# Pour tester: node --version, python3 --version, java -version, etc.
