@@ -14,8 +14,6 @@ echo "--- Applications stables ---"
 flatpak install -y flathub \
   com.obsproject.Studio \
   org.onlyoffice.desktopeditors \
-  com.visualstudio.code \
-
   io.dbeaver.DBeaverCommunity \
   md.obsidian.Obsidian \
   org.remmina.Remmina \
@@ -30,18 +28,12 @@ flatpak install -y flathub \
   org.virt_manager.virt-manager \
   io.neovim.nvim \
   com.vscodium.codium \
-  com.visualstudio.code \
   org.ferdium.Ferdium \
   org.winehq.Wine \
   org.inkscape.Inkscape \
   com.jeffser.Alpaca \
   com.github.johnfactotum.Foliate \
   org.zotero.Zotero
-
-echo "--- Applications potentiellement problématiques ---"
-# VS Code : réessayer individuellement
-echo "Installation VS Code..."
-flatpak install -y flathub com.visualstudio.code || echo "ÉCHEC : VS Code - installer manuellement"
 
 echo
 echo "=== Vérification des applications installées ==="
@@ -50,4 +42,3 @@ flatpak list --app --columns=name,application | head -20
 echo
 echo "=== Résumé ==="
 echo "✅ Applications installées avec succès"
-echo "⚠️  VS Code : Si échec, installer via snap ou .deb"

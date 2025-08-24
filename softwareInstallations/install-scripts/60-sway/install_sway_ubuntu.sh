@@ -19,7 +19,7 @@ fi
 
 # Mise à jour du système
 echo "📦 Mise à jour du système..."
-sudo apt update && sudo apt upgrade -y
+sudo apt update && sudo apt full-upgrade -y
 
 # Installation de Sway et des composants essentiels
 echo "🔧 Installation de Sway et des outils essentiels..."
