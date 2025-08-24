@@ -14,12 +14,13 @@ echo "--- Applications stables ---"
 flatpak install -y flathub \
   com.obsproject.Studio \
   org.onlyoffice.desktopeditors \
-  com.skype.Client \
+  com.visualstudio.code \
+
   io.dbeaver.DBeaverCommunity \
-  com.logseq.Logseq \
   md.obsidian.Obsidian \
   org.remmina.Remmina \
   com.discordapp.Discord \
+  com.super_productivity.SuperProductivity \
   com.mattjakeman.ExtensionManager \
   com.redis.RedisInsight \
   com.getpostman.Postman \
@@ -27,7 +28,9 @@ flatpak install -y flathub \
   org.gnome.Rhythmbox3 \
   fm.reaper.Reaper \
   org.virt_manager.virt-manager \
-  io.neovim.nvim
+  io.neovim.nvim \
+  com.vscodium.codium \
+  com.visualstudio.code
 
 echo "--- Applications potentiellement problématiques ---"
 # VS Code : réessayer individuellement
@@ -41,6 +44,4 @@ flatpak list --app --columns=name,application | head -20
 echo
 echo "=== Résumé ==="
 echo "✅ Applications installées avec succès"
-echo "❌ MEGAsync retiré (End-of-Life sur Flathub)"
 echo "⚠️  VS Code : Si échec, installer via snap ou .deb"
-echo "📝 Alternative MEGAsync : installer le .deb officiel depuis mega.nz"

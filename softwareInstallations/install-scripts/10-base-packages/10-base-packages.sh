@@ -11,8 +11,6 @@ sudo apt update
 
 echo "=== Installation des paquets de base via apt ==="
 sudo apt install -y \
-  python3 python3-pip \
-  nodejs \
   openssh-client openssh-server \
   lsd tree \
   zsh bash-completion \
@@ -22,10 +20,6 @@ sudo apt install -y \
 
 echo
 echo "=== Vérification des versions installées ==="
-echo -n "python3 : " && python3 --version
-echo -n "pip3    : " && pip3 --version
-echo -n "node    : " && node --version
-echo -n "npm     : " && npm --version
 echo -n "ssh     : " && ssh -V 2>&1
 echo -n "lsd     : " && lsd --version
 echo -n "tree    : " && tree --version
